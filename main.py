@@ -2,6 +2,14 @@ import argparse
 
 from network import NeuralNetwork
 import numpy as np
+import matplotlib.pyplot as plt
+
+
+def visualize(W1):
+    for i in range(10):
+        img = np.reshape(W1[:, i], (28, 28))
+        plt.imshow(img, cmap='Greys', interpolation='nearest')
+        plt.show()
 
 
 #
@@ -9,14 +17,22 @@ import numpy as np
 #
 def argumentParser():
     ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("-b", "--batchsize", default='50')
-    ap.add_argument("-e", "--epoch", default='30')
-    ap.add_argument("-lr", "--learningrate", default='0.01')
-    ap.add_argument('-hl', "--hiddenlayer", default=0)
-    ap.add_argument('-a', "--activationfunction", default='softmax')
-    ap.add_argument('-s', '--savemodel', default='none')
-    ap.add_argument('-ld', '--loadmodel', default='none')
-    ap.add_argument('-o', "--output", default='output.csv')
+    ap.add_argument("-td", "--traindata", default="train-data.npy", help="Path to train data")
+    ap.add_argument("-tl", "--trainlabel", default="train-label.npy", help="Path to train labels")
+    ap.add_argument("-vd", "--validationdata", default="validation-data.npy", help="Path to validation data")
+    ap.add_argument("-vl", "--validationlabel", default="validation-label.npy", help="Path to validation labels")
+    ap.add_argument("-ttd", "--testdata", default="test-data.npy", help="Path to test data -o can be used as well")
+    ap.add_argument("-b", "--batchsize", default='1280', help="Value of the batch size")
+    ap.add_argument("-e", "--epoch", default='10', help="Value of the epoch size")
+    ap.add_argument("-lr", "--learningrate", default='0.01', help="Value of the learning rate")
+    ap.add_argument('-hl', "--hiddenlayer", default=1, help="Value of the hidden layer size")
+    ap.add_argument('-a', "--activationfunction", default='softmax', help="Specify the activation function choices "
+                                                                          "are sigmoid tanh and softmax")
+    ap.add_argument('-s', '--savemodel', default='none', help="saves the model for future use")
+    ap.add_argument('-ld', '--loadmodel', default='none', help="loads the model")
+    ap.add_argument('-o', "--output", default='output.csv', help="output file for test data")
+    ap.add_argument("-v", "--visualize", default=False, help="Shows the visualizations of the weights set true if you "
+                                                             "want to see it")
     return vars(ap.parse_args())
 
 
@@ -41,14 +57,14 @@ def normalize_values(train_data, validation_data, test_data):
 # and creates simple
 # training label in the
 # form of one-hot#
-def load_data():
-    train_data = np.load('train-data.npy')
-    train_label = np.load('train-label.npy')
+def load_data(args):
+    train_data = np.load(args['traindata'])
+    train_label = np.load(args['trainlabel'])
 
-    validation_data = np.load('validation-data.npy')
-    validation_label = np.load('validation-label.npy')
+    validation_data = np.load(args['validationdata'])
+    validation_label = np.load(args['validationlabel'])
 
-    test_data = np.load('test-data.npy')
+    test_data = np.load(args['testdata'])
     train_data, validation_data, test_data = normalize_values(train_data, validation_data, test_data)
     new_train_label = list()
     for label in train_label:
@@ -61,14 +77,24 @@ def load_data():
     return train_data, train_label, validation_data, validation_label, test_data
 
 
+# predict the test file predictions
+def predictTestFile(nn, X_test_data):
+    prediction_data = nn.predict(X_test_data)
+    # write predicted data to cvs file
+    cvsFile = open(f"{args['output']}", 'w')
+    for i in range(1, 10001):
+        cvsFile.write(f'{i},{int(prediction_data[i-1])}\n')
+    cvsFile.close()
+
+
 def main():
     # Get the arguments
     args = argumentParser()
     # Load the data
-    X_train_data, Y_train_label, X_validation_data, Y_validation_label, X_test_data = load_data()
+    X_train_data, Y_train_label, X_validation_data, Y_validation_label, X_test_data = load_data(args)
     # initialize network with given parameters
     nn = NeuralNetwork(input_size=len(X_train_data[0]), output_size=10,
-                       epoch=int(args['epoch']), batch_size=int(args['batchsize']),
+                       epoch=int(args['epoch']), batch_size=10,
                        activation_func=args['activationfunction'],
                        learning_rate=float(args['learningrate']),
                        hidden_layer_count=int(args['hiddenlayer']))
@@ -84,17 +110,19 @@ def main():
         nn.fit(X_train_data, Y_train_label)
 
     # test with validation data
-    print(nn.score(X_validation_data, Y_validation_label))
-    # predict the test file predictions
-    prediction_data = nn.predict(X_test_data)
-    # write predicted data to cvs file
-    cvsFile = open(f"{args['output']}", 'w')
-    for i in range(1, 10001):
-        cvsFile.write(f'{i},{int(prediction_data[i-1])}\n')
-    cvsFile.close()
+    print("accuracy : ", nn.score(X_validation_data, Y_validation_label))
+
+    # Uncomment if you want to predict the test file
+    # predictTestFile(nn,X_test_data)
+
     # save the model if needed
     if args['savemodel'] != 'none':
         nn.save_model(args['savemodel'])
+
+    if args['visualize'] and nn.hidden_layer_count == 0:
+        visualize(nn.model["WO"])
+    else:
+        print("Visualization is usable when hidden layer count is 1")
 
 
 if __name__ == '__main__':

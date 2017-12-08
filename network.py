@@ -112,12 +112,14 @@ class NeuralNetwork:
         dW.append(self.learning_rate * X.T.dot(delta))
 
         return dB, dW
+
     # updates the weights according to
     # db and dW
     def updateWeights(self, dB, dW):
         for i in range(self.hidden_layer_count + 1):
             self.model[f"W{i}"] = self.model[f"W{i}"] - dW[-i - 1]
             self.model[f"B{i}"] = self.model[f"B{i}"] - dB[-i - 1]
+
     # predicts the given data
     # batch by batch
     def predict(self, data):
